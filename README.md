@@ -7,9 +7,10 @@
 
 ## Documents
 
+-   [The Preparation Readings](./docs/readings/)
+
 -   [The Course Notes](./docs/notes/)
 
 -   [The Lab Implementation Records](./docs/labs/)
 
--   [The Preparation Readings](./docs/readings/)
 
