@@ -4,6 +4,7 @@ import "fmt"
 import "log"
 import "net/rpc"
 import "hash/fnv"
+import "encoding/json"
 
 
 //
@@ -13,6 +14,10 @@ type KeyValue struct {
 	Key   string
 	Value string
 }
+
+var waitSeconds int
+var intermediateEncoderMap map[int]json.Encoder
+var intermediateFileMap map[int]string
 
 //
 // use ihash(key) % NReduce to choose the reduce
@@ -32,33 +37,76 @@ func Worker(mapf func(string, string) []KeyValue,
 	reducef func(string, []string) string) {
 
 	// Your worker implementation here.
-
+	
 	// uncomment to send the Example RPC to the coordinator.
-	// CallExample()
-
+	curOpt := Require
+	for {
+		reply := RequireTask(curOpt)
+		if reply.Done {
+			break
+		}
+		
+		switch reply.CurPhase {
+		case MapPhase:
+			// do map task
+			fmt.Println("do map task")
+			MapTask(reply, mapf)
+		case ReducePhase:
+			// do reduce task
+			fmt.Println("do reduce task")
+		}
+		time.Sleep(waitSeconds)
+	}
 }
 
-//
-// example function to show how to make an RPC call to the coordinator.
-//
-// the RPC argument and reply types are defined in rpc.go.
-//
-func CallExample() {
+func RequireTask(curOpt Opt) CallReply {
+	args := CallArgs{}
+	args.CurOpt = curOpt
+	reply := CallReply{}
+	
+	call("Coordinator.HandOutTask", &args, &reply)
+	fmt.Println("Args: %v, Reply: %v", &args.CurOpt, reply)
+	return reply
+}
 
-	// declare an argument structure.
-	args := ExampleArgs{}
+func MapTask(CallReply reply, mapf func(string, string) []KeyValue) bool {
+	// 读入文件，，使用 mapf 生成中间数据
+	fileName := reply.MapFile
+	file, err := os.Open(fileName)
+	if err != nil {
+		log.Fatalf("Can't open file %v", fileName)
+	}
+	content, err := ioutil.ReadAll(file)
+        if err != nil {
+                log.Fatalf("Can't read file %v", fileName)
+        }
+	defer file.Close()
+	kva := mapf(filename, string(content))
+	
+	// 中间数据划分并做持久化处理
+	succ := true
+	for i, kv := range kva {
+		// 划分 kva，并生成 reduce task 的 id
+		redecuTaskIdx := ihash(kv.Key) % reply.ReduceNumber
+		intermediateEncoder := json.NewEncoder(file)
+		intermediateEncoderMap[reduceTaskIdx] = intermediateEncoder
+		if err := intermediateEncoder.Encode(&kv); err != nil {
+			log.Fatalf("Encode kv: %v failed", kv)
+			succ = false
+			break
+		}
+	}
 
-	// fill in the argument(s).
-	args.X = 99
+	if succ {
+		for reduceTaskIdx, fileName := range intermediateFileMap {
+			os.Rename(fileName, fmt.Sprintf("mr-%+v-%+v", reply.MapTaskIdx, reduceTaskidx))
+	}
+	return succ
+}
 
-	// declare a reply structure.
-	reply := ExampleReply{}
 
-	// send the RPC request, wait for the reply.
-	call("Coordinator.Example", &args, &reply)
-
-	// reply.Y should be 100.
-	fmt.Printf("reply.Y %v\n", reply.Y)
+func ReduceTask(reply CallReply, reducef func(string, []string) string) bool {
+	
 }
 
 //

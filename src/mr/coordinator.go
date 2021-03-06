@@ -9,20 +9,15 @@ import "net/http"
 
 type Coordinator struct {
 	// Your definitions here.
-
+	// 记录已分配的资源和工作进行情况
 }
 
 // Your code here -- RPC handlers for the worker to call.
-
-//
-// an example RPC handler.
-//
-// the RPC argument and reply types are defined in rpc.go.
-//
-func (c *Coordinator) Example(args *ExampleArgs, reply *ExampleReply) error {
-	reply.Y = args.X + 1
+func (c *Coordinator) HandOutTask(args *CallArgs, reply *CallReply) error {
+	reply.MapNumber = 0
 	return nil
 }
+
 
 
 //

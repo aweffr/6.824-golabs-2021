@@ -14,12 +14,62 @@ import "strconv"
 // and reply for an RPC.
 //
 
-type ExampleArgs struct {
-	X int
+type Opt int
+
+const (
+	Require Opt = iota
+	Finished
+	Failed
+)
+
+func (this Opt) String() string {
+	switch this {
+	case Require:
+		return "Require Task"
+	case Finished:
+		return "Task Finished"
+	case Failed;
+		return "Task Failed"
+	default:
+		return "Unknown Option"
+	}
 }
 
-type ExampleReply struct {
-	Y int
+type CallArgs struct {
+	/* call 操作请求类型，包括：
+	1 索要任务
+	2 通知任务完成
+	*/
+	CurOpt Opt
+}
+
+
+type Phase int
+
+const (
+	MapPhase Phase = iota
+	ReducePhase
+)
+
+func (this Phase) String() string {
+	switch this {
+	case MapPhase:
+		return "Current in Map Phase"
+	case ReducePhase:
+		return "Current in Reduce Phase"
+	default:
+		return "Unknown Phase"
+	}
+}
+
+type CallReply struct {
+	CurPhase Phase  // 当前处于 Map 阶段还是 Reduce 阶段
+	MapFile string  // map input file name
+	Done bool  // 是否全部任务已完成
+	MapNumber int  // Map 任务总数
+	ReduceNumber int  // Reduce 任务总数
+	MapTaskIdx int  // 对于 Map 任务来说，需要同时得知 MapTaskIdx 和 ReduceTaskIdx，来对中间文件进行命名
+	ReducetaskIdx int  // 可用来对输出文件命名
 }
 
 // Add your RPC definitions here.
