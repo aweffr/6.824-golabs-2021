@@ -13,7 +13,7 @@ type Coordinator struct {
 }
 
 // Your code here -- RPC handlers for the worker to call.
-func (c *Coordinator) HandOutTask(args *CallArgs, reply *CallReply) error {
+func (c *Coordinator) Response(args *CallArgs, reply *CallReply) error {
 	reply.MapNumber = 0
 	return nil
 }

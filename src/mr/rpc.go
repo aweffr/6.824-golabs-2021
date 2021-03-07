@@ -14,45 +14,32 @@ import "strconv"
 // and reply for an RPC.
 //
 
-type Opt int
-
+type Status int
 const (
-	Require Opt = iota
+	Require Status = iota
 	Finished
 	Failed
 )
-
-func (this Opt) String() string {
-	switch this {
+func (status Status) String() string {
+	switch status {
 	case Require:
 		return "Require Task"
 	case Finished:
 		return "Task Finished"
-	case Failed;
+	case Failed:
 		return "Task Failed"
 	default:
 		return "Unknown Option"
 	}
 }
 
-type CallArgs struct {
-	/* call 操作请求类型，包括：
-	1 索要任务
-	2 通知任务完成
-	*/
-	CurOpt Opt
-}
-
-
 type Phase int
-
 const (
 	MapPhase Phase = iota
 	ReducePhase
 )
-
-func (this Phase) String() string {
-	switch this {
+func (phase Phase) String() string {
+	switch phase {
 	case MapPhase:
 		return "Current in Map Phase"
 	case ReducePhase:
@@ -62,6 +49,21 @@ func (this Phase) String() string {
 	}
 }
 
+type CallArgs struct {
+	/* call 操作请求类型，包括：
+	CurStatus
+	1 索要任务 Require
+	2 通知任务完成 Finished
+	3 notify task failed Failed
+	CurPhase
+	1 Map
+	2 Reduce
+	*/
+	CurStatus Status
+	CurPhase Phase
+	TaskIdx int
+}
+
 type CallReply struct {
 	CurPhase Phase  // 当前处于 Map 阶段还是 Reduce 阶段
 	MapFile string  // map input file name
@@ -69,7 +71,7 @@ type CallReply struct {
 	MapNumber int  // Map 任务总数
 	ReduceNumber int  // Reduce 任务总数
 	MapTaskIdx int  // 对于 Map 任务来说，需要同时得知 MapTaskIdx 和 ReduceTaskIdx，来对中间文件进行命名
-	ReducetaskIdx int  // 可用来对输出文件命名
+	ReduceTaskIdx int  // 可用来对输出文件命名
 }
 
 // Add your RPC definitions here.
