@@ -1,6 +1,11 @@
-idea/*
+.idea/*
 tmp/*
 *.bak
+
+mr-out-*
+mrseuential
+mrcoordinator
+mrworker
 
 # Binaries for programs and plugins
 *.exe
