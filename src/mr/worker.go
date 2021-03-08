@@ -28,7 +28,6 @@ func (a ByKey) Len() int           { return len(a) }
 func (a ByKey) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a ByKey) Less(i, j int) bool { return a[i].Key < a[j].Key }
 
-var waitSeconds int
 var intermediateEncoderMap map[int]*json.Encoder = nil
 var intermediateFileNameMap map[int]string = nil
 
@@ -42,219 +41,156 @@ func ihash(key string) int {
 	return int(h.Sum32() & 0x7fffffff)
 }
 
-
-//
-// main/mrworker.go calls this function.
-//
-func Worker(mapf func(string, string) []KeyValue,
-	reducef func(string, []string) string) {
-
-	// Your worker implementation here.
-	
-	// uncomment to send the Example RPC to the coordinator.
+func Worker(mapf func(string, string) []KeyValue, reducef func(string, []string) string) {
 	for {
 		reply := Request()
-		if reply.Done {
+		if reply.TaskDone {
 			break
 		}
-		
+		result := true
 		switch reply.CurPhase {
 		case MapPhase:
-			// do map task
-			fmt.Println("do map task")
-			result := MapTask(reply, mapf)
-			if result {
-				curStatus:= Finished
-				NotifyStatus(curStatus, MapPhase, reply.MapTaskIdx)
-			} else {
-				curStatus := Failed
-				NotifyStatus(curStatus, MapPhase, reply.MapTaskIdx)
-			}
+			result = MapTask(reply, mapf)
 		case ReducePhase:
-			// do reduce task
-			fmt.Println("do reduce task")
-			result := ReduceTask(reply, reducef)
-			if result {
-				curStatus := Finished
-				NotifyStatus(curStatus, ReducePhase, reply.ReduceTaskIdx)
-			} else {
-				curStatus := Failed
-				NotifyStatus(curStatus, ReducePhase, reply.ReduceTaskIdx)
-			}
+			result = ReduceTask(reply, reducef)
 		}
-		time.Sleep(time.Duration(waitSeconds))
+		var curStatus WorkerStatus
+		if result {
+			curStatus = Finished
+		} else {
+			curStatus = Failed
+		}
+		NotifyStatus(curStatus, reply.TaskIdx)
+		time.Sleep(time.Second)
 	}
 }
 
 func Request() CallReply {
 	args := CallArgs{}
-	args.CurStatus = Require
+	args.CurStatus = Idle
 	reply := CallReply{}
 	call("Coordinator.Response", &args, &reply)
-	fmt.Printf("Args: %v, Reply: %v", &args.CurStatus, reply)
 	return reply
 }
 
-func NotifyStatus(curStatus Status, curPhase Phase, taskIdx int) CallReply {
+func NotifyStatus(curStatus WorkerStatus, idx int) {
 	args := CallArgs{}
 	args.CurStatus = curStatus
-	args.CurPhase = curPhase
-	args.TaskIdx = taskIdx
+	args.TaskIdx = idx
 	reply := CallReply{}
 	call("Coordinator.Response", &args, &reply)
-	fmt.Printf("Args: %v, Reply: %v", &args.CurStatus, reply)
-	return reply
 }
 
 func MapTask(reply CallReply, mapf func(string, string) []KeyValue) bool {
 	InitialReduceTask(reply)
-	// 读入文件，，使用 mapf 生成中间数据
 	fileName := reply.MapFile
 	file, err := os.Open(fileName)
 	if err != nil {
-		log.Fatalf("Can't open file %v", fileName)
+		os.Exit(1)
 		return false
 	}
 	content, err := ioutil.ReadAll(file)
 	if err != nil {
-		log.Fatalf("Can't read file [%+v]", fileName)
+		log.Fatalf("cannot read %v", fileName)
 		return false
 	}
-	err = file.Close()
-	if err != nil {
-		log.Fatalf("Close file: [%+v] failed",  fileName)
-		return false
-	}
+	defer file.Close()
 	kva := mapf(fileName, string(content))
-	
-	// 中间数据划分并做持久化处理
-	for _, kv := range kva {
-		// 划分 kva，并生成 reduce task 的 id
-		reduceTaskIdx := ihash(kv.Key) % reply.ReduceNumber
+	mapPhaseSucc := true
+	for i := 0; i < len(kva); i++ {
+		reduceTaskIdx := ihash(kva[i].Key) % reply.ReduceNumber
 		intermediateEncoder := intermediateEncoderMap[reduceTaskIdx]
-		if err := intermediateEncoder.Encode(&kv); err != nil {
-			log.Fatalf("Encode kv: [%+v] failed", kv)
+		if err := intermediateEncoder.Encode(kva[i]); err != nil {
+			mapPhaseSucc = false
+			intermediateEncoderMap = nil
+			intermediateFileNameMap = nil
+			log.Fatalf("encode kv:%v failed", kva[i])
 			return false
 		}
 	}
-	
-	for reduceTaskIdx, fileName := range intermediateFileNameMap {
-		err = os.Rename(fileName, fmt.Sprintf("mr-%+v-%+v", reply.MapTaskIdx, reduceTaskIdx))
-		if err != nil {
-			log.Fatalf("Atomic rename tmp file: [%+v] failed", fileName)
-			return false
+	if mapPhaseSucc {
+		for reduceIdx, fileName := range intermediateFileNameMap {
+			_ = os.Rename(fileName, fmt.Sprintf("mr-%+v-%+v", reply.TaskIdx, reduceIdx))
 		}
+		intermediateEncoderMap = nil
+		intermediateFileNameMap = nil
 	}
-	intermediateEncoderMap = nil
-	intermediateFileNameMap = nil
+
 	return true
 }
-
 
 func InitialReduceTask(reply CallReply) {
-	// initialize encoder and filename map for reduce task
-	// reduceTaskIdx:json.Encoder
-	// reduceTaskIdx:filename
 	if intermediateEncoderMap == nil {
-
 		intermediateEncoderMap = make(map[int]*json.Encoder)
 		intermediateFileNameMap = make(map[int]string)
-		for idx:=0; idx<reply.ReduceNumber; idx++ {
-			fileName := fmt.Sprintf("mr-tmp-%+v-%+v", reply.MapTaskIdx, idx)
+		for j := 0; j < reply.ReduceNumber; j++ {
+			fileName := fmt.Sprintf("mr-tmp-%+v-%+v", reply.TaskIdx, j)
 			file, err := os.OpenFile(fileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 			if err != nil {
-				log.Fatalf("Can't open the intermediate file: %+v", fileName)
+				log.Fatalf("cannot open intermediateEncoderFile:%v mapIdx:%+v reduceIdx:%+v", fileName, reply.TaskIdx, j)
 			}
-			intermediateFileNameMap[idx] = fileName
-			intermediateEncoderMap[idx] = json.NewEncoder(file)
+			intermediateEncoderMap[j] = json.NewEncoder(file)
+			intermediateFileNameMap[j] = fileName
 		}
 	}
 }
 
-
 func ReduceTask(reply CallReply, reducef func(string, []string) string) bool {
-	var intermediateKV []KeyValue
-	// summary the map task intermediate output for reduce task form reply
-	for idx:=0; idx<reply.MapNumber; idx++ {
-		fileName := fmt.Sprintf("mr-%+v-%+v", idx, reply.ReduceTaskIdx)
+	var intermediate []KeyValue
+	for i := 0; i < reply.MapNumber; i++ {
+		fileName := fmt.Sprintf("mr-%+v-%+v", i, reply.TaskIdx)
 		file, err := os.Open(fileName)
 		if err != nil {
-			log.Fatalf("Can't open file %v", fileName)
-			return false
+			log.Fatalf("cannot open intermediateDecoderFile:%v mapIdx:%+v reduceIdx:%+v", fileName, i, reply.TaskIdx)
 		}
-		decoder := json.NewDecoder(file)
+		dec := json.NewDecoder(file)
 		for {
 			var kv KeyValue
-			if err := decoder.Decode(&kv); err != nil {
-				log.Fatalf("Decode kv: [%+v] failed", kv)
-				return false
+			if err := dec.Decode(&kv); err != nil {
+				break
 			}
-			intermediateKV = append(intermediateKV, kv)
+			intermediate = append(intermediate, kv)
 		}
 	}
-	// sorted the summary kv by Key
-	sort.Sort(ByKey(intermediateKV))
+	sort.Sort(ByKey(intermediate))
 
-	// store the reduce task output
-	oname := fmt.Sprintf("mr-out-%+v", reply.ReduceTaskIdx)
-	tname := "mr-tmp-reduce"
-	ofile, err := os.Create(tname)
+	oname := fmt.Sprintf("mr-out-%+v", reply.TaskIdx)
+	tname := fmt.Sprintf("mr-tmp-reduce")
+	ofile, err := os.OpenFile(tname, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		log.Fatalf("Can't create file: [%+v]", tname)
+		log.Fatalf("cannot open temp fileName:%v", tname)
 		return false
 	}
 
-	//
-	// call Reduce on each distinct key in intermediate[],
-	// and print the result to mr-out-0.
-	//
 	i := 0
-	for i < len(intermediateKV) {
+	for i < len(intermediate) {
 		j := i + 1
-		for j < len(intermediateKV) && intermediateKV[j].Key == intermediateKV[i].Key {
+		for j < len(intermediate) && intermediate[j].Key == intermediate[i].Key {
 			j++
 		}
-		var values []string
+		values := []string{}
 		for k := i; k < j; k++ {
-			values = append(values, intermediateKV[k].Value)
+			values = append(values, intermediate[k].Value)
 		}
-		output := reducef(intermediateKV[i].Key, values)
+		output := reducef(intermediate[i].Key, values)
 
 		// this is the correct format for each line of Reduce output.
-		_, err = fmt.Fprintf(ofile, "%v %v\n", intermediateKV[i].Key, output)
-		if err != nil {
-			log.Fatalf("Write kv: [%+v] failed", intermediateKV[i])
-			return false
-		}
+		_, _ = fmt.Fprintf(ofile, "%v %v\n", intermediate[i].Key, output)
+
 		i = j
 	}
-	err = os.Rename(tname, oname)
-	if err != nil {
-		log.Fatalf("Can't rename file: [%+v] to: [%+v]", tname, oname)
-		return false
-	}
-	for idx:=0; idx<reply.MapNumber; idx++ {
-		fileName := fmt.Sprintf("mr-%+v-%+v", idx, reply.ReduceTaskIdx)
+	_ = os.Rename(tname, oname)
+	for i := 0; i < reply.MapNumber; i++ {
+		fileName := fmt.Sprintf("mr-%+v-%+v", i, reply.TaskIdx)
 		err := os.Remove(fileName)
 		if err != nil {
-			log.Fatalf("Can't remove file: [%+v]", fileName)
-			return false
+			log.Fatalf("cannot remove tmp file:%v", fileName)
 		}
 	}
-	err = ofile.Close()
-	if err != nil {
-		log.Fatalf("Close file: [%+v] failed", ofile.Name())
-		return false
-	}
-
+	defer ofile.Close()
 	return true
 }
 
-//
-// send an RPC request to the coordinator, wait for the response.
-// usually returns true.
-// returns false if something goes wrong.
-//
 func call(rpcname string, args interface{}, reply interface{}) bool {
 	// c, err := rpc.DialHTTP("tcp", "127.0.0.1"+":1234")
 	sockname := coordinatorSock()

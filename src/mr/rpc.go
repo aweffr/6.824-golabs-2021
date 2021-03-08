@@ -14,22 +14,41 @@ import "strconv"
 // and reply for an RPC.
 //
 
-type Status int
+type WorkerStatus int
 const (
-	Require Status = iota
+	Idle WorkerStatus = iota
 	Finished
 	Failed
 )
-func (status Status) String() string {
+func (status WorkerStatus) String() string {
 	switch status {
-	case Require:
-		return "Require Task"
+	case Idle:
+		return "Worker is idle"
 	case Finished:
-		return "Task Finished"
+		return "Worker Task Finished"
 	case Failed:
-		return "Task Failed"
+		return "Worker Task Failed"
 	default:
-		return "Unknown Option"
+		return "Unknown Worker Status"
+	}
+}
+
+type TaskStatus int
+const (
+	NotStart TaskStatus = iota
+	Doing
+	Done
+)
+func (status TaskStatus) String() string {
+	switch status {
+	case NotStart:
+		return "Task Not Start"
+	case Doing:
+		return "Task Doing"
+	case Done:
+		return "Task Done"
+	default:
+		return "Unknown Task Status"
 	}
 }
 
@@ -59,23 +78,18 @@ type CallArgs struct {
 	1 Map
 	2 Reduce
 	*/
-	CurStatus Status
-	CurPhase Phase
+	CurStatus WorkerStatus
 	TaskIdx int
 }
 
 type CallReply struct {
 	CurPhase Phase  // 当前处于 Map 阶段还是 Reduce 阶段
 	MapFile string  // map input file name
-	Done bool  // 是否全部任务已完成
+	TaskDone bool  // 是否全部 map 任务已完成
 	MapNumber int  // Map 任务总数
 	ReduceNumber int  // Reduce 任务总数
-	MapTaskIdx int  // 对于 Map 任务来说，需要同时得知 MapTaskIdx 和 ReduceTaskIdx，来对中间文件进行命名
-	ReduceTaskIdx int  // 可用来对输出文件命名
+	TaskIdx int  // 对于 Map 任务来说，需要同时得知 MapTaskIdx 和 ReduceTaskIdx，来对中间文件进行命名
 }
-
-// Add your RPC definitions here.
-
 
 // Cook up a unique-ish UNIX-domain socket name
 // in /var/tmp, for the coordinator.
