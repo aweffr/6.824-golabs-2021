@@ -14,6 +14,9 @@ import "strconv"
 // and reply for an RPC.
 //
 
+// By 1uvu
+// 定义 worker 状态
+//
 type WorkerStatus int
 const (
 	Idle WorkerStatus = iota
@@ -22,7 +25,7 @@ const (
 )
 func (status WorkerStatus) String() string {
 	switch status {
-	case Idle:
+	case Idle: // 闲置状态, 代表需要被分配 task
 		return "Worker is idle"
 	case Finished:
 		return "Worker Task Finished"
@@ -33,6 +36,9 @@ func (status WorkerStatus) String() string {
 	}
 }
 
+// By 1uvu
+// 定义 task 状态
+//
 type TaskStatus int
 const (
 	NotStart TaskStatus = iota
@@ -52,6 +58,9 @@ func (status TaskStatus) String() string {
 	}
 }
 
+// By 1uvu
+// 定义 task 阶段
+//
 type Phase int
 const (
 	MapPhase Phase = iota
@@ -69,26 +78,17 @@ func (phase Phase) String() string {
 }
 
 type CallArgs struct {
-	/* call 操作请求类型，包括：
-	CurStatus
-	1 索要任务 Require
-	2 通知任务完成 Finished
-	3 notify task failed Failed
-	CurPhase
-	1 Map
-	2 Reduce
-	*/
-	CurStatus WorkerStatus
-	TaskIdx int
+	CurStatus 		WorkerStatus	// 当前 worker 状态
+	TaskIdx 		int 			// 当前 worker task id
 }
 
 type CallReply struct {
-	CurPhase Phase  // 当前处于 Map 阶段还是 Reduce 阶段
-	MapFile string  // map input file name
-	TaskDone bool  // 是否全部 map 任务已完成
-	MapNumber int  // Map 任务总数
-	ReduceNumber int  // Reduce 任务总数
-	TaskIdx int  // 对于 Map 任务来说，需要同时得知 MapTaskIdx 和 ReduceTaskIdx，来对中间文件进行命名
+	CurPhase 		Phase  			// 当前处于 Map 阶段还是 Reduce 阶段
+	MapFile 		string  		// map input file name
+	TaskDone 		bool  			// 是否全部 map 任务已完成
+	MapNumber 		int  			// Map 任务总数
+	ReduceNumber 	int  			// Reduce 任务总数
+	TaskIdx 		int  			// 对于 Map 任务来说，需要同时得知 MapTaskIdx 和 ReduceTaskIdx，来对中间文件进行命名
 }
 
 // Cook up a unique-ish UNIX-domain socket name

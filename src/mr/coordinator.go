@@ -36,7 +36,7 @@ type Coordinator struct {
 
 // Your code here -- RPC handlers for the worker to call.
 // By 1uvu
-// 根据 worker 的请求参数携带的 worker 当前状态, 来做对应的处理
+// 根据 worker 的请求 args 携带的 worker 当前状态, 来做对应的处理
 //
 func (c *Coordinator) Response(args *CallArgs, reply *CallReply) error {
 

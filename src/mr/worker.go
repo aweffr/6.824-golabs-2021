@@ -13,13 +13,6 @@ import "hash/fnv"
 import "encoding/json"
 
 // todo 1 worker 实现 Backup: mr-wc-all-initial
-/*
-sort: cannot read: 'mr-out*': No such file or directory
-cmp: EOF on mr-wc-all-initial which is empty
---- output changed after first worker exited
---- early exit test: FAIL
-
- */
 // todo 2 use sync.Cond to replace time.Sleep
 // todo 3 improve the code based the official solution
 
@@ -31,19 +24,24 @@ type KeyValue struct {
 	Value string
 }
 
-// sorted by Key, so implement the Sort data interface
+// sorted by Key, 实现 sort.Sort() 的 data 接口
 type ByKey []KeyValue
 
 func (a ByKey) Len() int           { return len(a) }
 func (a ByKey) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a ByKey) Less(i, j int) bool { return a[i].Key < a[j].Key }
 
+// 保存每个中间文件的 json Encoder
 var intermediateEncoderMap map[int]*json.Encoder = nil
+// 保存每个中间文件的 file name
 var intermediateFileNameMap map[int]string = nil
 
 //
 // use ihash(key) % NReduce to choose the reduce
 // task number for each KeyValue emitted by Map.
+// By 1uvu
+// 根据 ihash(key) % NReduce 的值将生成的每一个中间 kv 分配给对应的 reduce
+// (以存入 intermediate file named [mr-mapTaskIdx-reduceTaskIdx] 的形式)
 //
 func ihash(key string) int {
 	h := fnv.New32a()
@@ -51,13 +49,16 @@ func ihash(key string) int {
 	return int(h.Sum32() & 0x7fffffff)
 }
 
+// By 1uvu
+// 根据 coordinator 的响应 reply 携带的 worker 当前状态及其他信息, 来做对应的处理
+//
 func Worker(mapf func(string, string) []KeyValue, reducef func(string, []string) string) {
 	for {
 		reply := Request()
 		if reply.TaskDone {
 			break
 		}
-		result := true
+		result := true // 当前 task 是否正常完成
 		switch reply.CurPhase {
 		case MapPhase:
 			result = MapTask(reply, mapf)
@@ -75,6 +76,7 @@ func Worker(mapf func(string, string) []KeyValue, reducef func(string, []string)
 	}
 }
 
+// 请求 task
 func Request() CallReply {
 	args := CallArgs{}
 	args.CurStatus = Idle
@@ -83,6 +85,7 @@ func Request() CallReply {
 	return reply
 }
 
+// 通知状态
 func NotifyStatus(curStatus WorkerStatus, idx int) {
 	args := CallArgs{}
 	args.CurStatus = curStatus
