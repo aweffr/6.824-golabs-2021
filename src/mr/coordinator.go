@@ -186,10 +186,11 @@ func (c *Coordinator) server() {
 // if the entire job has finished.
 //
 func (c *Coordinator) Done() bool {
-	ret := false
 	mutex.Lock()
+	defer mutex.Unlock()
+	fmt.Println(c.TaskDone, c.DoneMapNumber, c.DoneReduceNumber)
+	ret := false
 	ret = c.TaskDone
-	mutex.Unlock()
 	return ret
 }
 
