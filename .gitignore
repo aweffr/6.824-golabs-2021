@@ -2,7 +2,7 @@
 tmp/*
 *.bak
 
-mr-out-*
+mr-*
 mrseuential
 mrcoordinator
 mrworker
