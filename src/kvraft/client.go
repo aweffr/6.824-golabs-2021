@@ -1,6 +1,6 @@
 package kvraft
 
-import "6.824/labrpc"
+import "6.824-golabs-2021/labrpc"
 import "crypto/rand"
 import "math/big"
 

@@ -7,7 +7,7 @@ package main
 //
 
 import "fmt"
-import "6.824/mr"
+import "6.824-golabs-2021/mr"
 import "plugin"
 import "os"
 import "log"

@@ -12,7 +12,7 @@ package main
 // instead of a and b.
 
 import "time"
-import "6.824/lockservice"
+import "6.824-golabs-2021/lockservice"
 import "os"
 import "fmt"
 

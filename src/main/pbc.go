@@ -18,7 +18,7 @@ package main
 // and restart them to exercise fault tolerance.
 //
 
-import "6.824/pbservice"
+import "6.824-golabs-2021/pbservice"
 import "os"
 import "fmt"
 

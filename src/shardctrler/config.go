@@ -1,7 +1,7 @@
 package shardctrler
 
-import "6.824/labrpc"
-import "6.824/raft"
+import "6.824-golabs-2021/labrpc"
+import "6.824-golabs-2021/raft"
 import "testing"
 import "os"
 

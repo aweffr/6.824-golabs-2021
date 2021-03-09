@@ -1,9 +1,9 @@
 package kvraft
 
 import (
-	"6.824/labgob"
-	"6.824/labrpc"
-	"6.824/raft"
+	"6.824-golabs-2021/labgob"
+	"6.824-golabs-2021/labrpc"
+	"6.824-golabs-2021/raft"
 	"log"
 	"sync"
 	"sync/atomic"

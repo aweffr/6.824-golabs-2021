@@ -5,7 +5,7 @@ package main
 //
 
 import "time"
-import "6.824/viewservice"
+import "6.824-golabs-2021/viewservice"
 import "os"
 import "fmt"
 

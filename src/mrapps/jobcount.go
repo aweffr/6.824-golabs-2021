@@ -8,7 +8,7 @@ package main
 // go build -buildmode=plugin crash.go
 //
 
-import "6.824/mr"
+import "6.824-golabs-2021/mr"
 import "math/rand"
 import "strings"
 import "strconv"

@@ -1,10 +1,10 @@
 package shardctrler
 
 
-import "6.824/raft"
-import "6.824/labrpc"
+import "6.824-golabs-2021/raft"
+import "6.824-golabs-2021/labrpc"
 import "sync"
-import "6.824/labgob"
+import "6.824-golabs-2021/labgob"
 
 
 type ShardCtrler struct {

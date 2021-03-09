@@ -16,7 +16,7 @@ package main
 //   -r restart
 
 import "time"
-import "6.824/diskv"
+import "6.824-golabs-2021/diskv"
 import "os"
 import "fmt"
 import "strconv"
