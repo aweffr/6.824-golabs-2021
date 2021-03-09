@@ -10,9 +10,15 @@
 
 ## Documents
 
--   [The Preparation Readings](./docs/readings/)
--   [The Course Notes](./docs/notes/)
--   [The Lab Implementation Records](./docs/labs/)
+-   [Labs](docs/labs/)
+    -   [x] [Lab 1: MapReduce](docs/labs/l01/)
+    -   [ ] [Lab 2: replication for fault-tolerance using Raft](docs/labs/l02/)
+    -   [ ] [Lab 3: fault-tolerant key/value store](docs/labs/l03/)
+    -   [ ] [Lab 4: sharded key/value store](docs/labs/l04/)
+
+-   [Lectures](docs/lectures/)
+    -   [x] [Lecture 1: Introduction](docs/lectures/l01/)
+    -   [ ] [Lecture 2: RPC and Threads](docs/lectures/l02/)
 
 ## Schedule: Spring 2021
 
