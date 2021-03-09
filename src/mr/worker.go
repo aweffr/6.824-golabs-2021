@@ -12,6 +12,16 @@ import "net/rpc"
 import "hash/fnv"
 import "encoding/json"
 
+// todo 1 worker 实现 Backup: mr-wc-all-initial
+/*
+sort: cannot read: 'mr-out*': No such file or directory
+cmp: EOF on mr-wc-all-initial which is empty
+--- output changed after first worker exited
+--- early exit test: FAIL
+
+ */
+// todo 2 use sync.Cond to replace time.Sleep
+// todo 3 improve the code based the official solution
 
 //
 // Map functions return a slice of KeyValue.

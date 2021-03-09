@@ -11,11 +11,9 @@ import "os"
 import "net/rpc"
 import "net/http"
 
-/*
-mutex input for map task input
-mutex inter for map task output and reduce task input
-mutex output for reduce task output
- */
+//
+//  for each task, map or reduce, only
+//
 var mutex sync.Mutex
 
 type Coordinator struct {
@@ -30,13 +28,6 @@ type Coordinator struct {
 	DoneMapNumber int
 	DoneReduceNumber int
 }
-
-// todo
-/*
-shared server, so locked the shared data
-fault tolerance: 设置超时为 10s。
-worker 实现 Backup
- */
 
 // Your code here -- RPC handlers for the worker to call.
 func (c *Coordinator) Response(args *CallArgs, reply *CallReply) error {
@@ -65,6 +56,7 @@ func (c *Coordinator) Response(args *CallArgs, reply *CallReply) error {
 func (c *Coordinator) HandleMapRequire(reply *CallReply) error {
 	// based the worker phase to handout task i.e. input files
 	mutex.Lock()
+	defer mutex.Unlock()
 	for idx:=0; idx<len(c.MapTaskStatusMap); idx++ {
 		if c.MapTaskStatusMap[idx] == NotStart {
 			reply.MapFile = c.InputFiles[idx]
@@ -78,22 +70,22 @@ func (c *Coordinator) HandleMapRequire(reply *CallReply) error {
 				timer := time.NewTimer(time.Second * 10)
 				<-timer.C
 				mutex.Lock()
+				defer mutex.Unlock()
 				// timeout and then callback task
 				if c.MapTaskStatusMap[mapTaskIdx] == Doing {
 					c.MapTaskStatusMap[mapTaskIdx] = NotStart
 				}
-				mutex.Unlock()
 			}(idx)
 			break
 		}
 	}
-	mutex.Unlock()
 	return nil
 }
 
 func (c *Coordinator) HandleReduceRequire(reply *CallReply) error {
 	// based the worker phase to handout task i.e. input files
 	mutex.Lock()
+	defer mutex.Unlock()
 	for idx:=0; idx<len(c.ReduceTaskStatusMap); idx++ {
 		if c.ReduceTaskStatusMap[idx] == NotStart {
 			reply.CurPhase = ReducePhase
@@ -106,22 +98,22 @@ func (c *Coordinator) HandleReduceRequire(reply *CallReply) error {
 				timer := time.NewTimer(time.Second * 10)
 				<-timer.C
 				mutex.Lock()
+				defer mutex.Unlock()
 				// timeout and then callback task
 				if c.ReduceTaskStatusMap[reduceTaskIdx] == Doing {
 					c.ReduceTaskStatusMap[reduceTaskIdx] = NotStart
 				}
-				mutex.Unlock()
 			}(idx)
 			break
 		}
 	}
-	mutex.Unlock()
 	return nil
 }
 
 
 func (c *Coordinator) HandleFinished(args *CallArgs) error {
 	mutex.Lock()
+	defer mutex.Unlock()
 	switch c.CurPhase {
 	case MapPhase:
 		c.MapTaskStatusMap[args.TaskIdx] = Done
@@ -136,19 +128,18 @@ func (c *Coordinator) HandleFinished(args *CallArgs) error {
 			c.TaskDone = true
 		}
 	}
-	mutex.Unlock()
 	return nil
 }
 
 func (c *Coordinator) HandleFailed(args *CallArgs) error {
 	mutex.Lock()
+	defer mutex.Unlock()
 	switch c.CurPhase {
 	case MapPhase:
 		c.MapTaskStatusMap[args.TaskIdx] = NotStart
 	case ReducePhase:
 		c.ReduceTaskStatusMap[args.TaskIdx] = NotStart
 	}
-	mutex.Unlock()
 	return nil
 }
 
