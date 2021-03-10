@@ -1,7 +1,7 @@
 .idea/*
-tmp/*
+*/tmp/*
 *.bak
-.vscode/*
+.vscode
 
 mr-*
 mrseuential
