@@ -3,13 +3,13 @@ package mr
 import (
 	"fmt"
 	"log"
+	"net"
+	"net/http"
+	"net/rpc"
+	"os"
 	"sync"
 	"time"
 )
-import "net"
-import "os"
-import "net/rpc"
-import "net/http"
 
 // By 1uvu
 // mutex 信号量锁住的其实不是资源而是资源的“状态”, 一份资源上一把锁
@@ -18,20 +18,19 @@ import "net/http"
 // 另外注意: 锁本身无意义,它保证的只是对一系列状态使用和修改操作的原子性,
 // map worker 和 reduce worker 并不会一起执行, 因此此处只需要定义一个 mutex 写好了即可.
 //
-var mutex sync.Mutex
-
 type Coordinator struct {
 	// By 1uvu
 	// 记录已分配的资源和工作进行情况
-	InputFiles 				[]string //	-------	// map worker 的输入文件
-	MapNumber 				int 	 //	-------	// map task 总数, 一个 task 对应一个 worker
-	ReduceNumber 			int 	 //	-------	// reduce task 总数, 一个 task 对应一个 worker
-	MapTaskStatusMap 		map[int]TaskStatus	// 记录每一个 map worker 的 task 当前执行状态
-	ReduceTaskStatusMap 	map[int]TaskStatus	// 记录每一个 reduce worker 的 task 当前执行状态
-	CurPhase 				Phase 	 //	-------	// 当前处于的任务阶段: map/reduce
-	TaskDone 				bool 	 //	-------	// 任务是否已完成
-	DoneMapNumber 			int 	 //	-------	// 已完成的 map task 总数
-	DoneReduceNumber 		int 	 //	-------	// 已完成的 reduce task 总数
+	mutex               sync.Mutex
+	InputFiles          []string           //	-------	// map worker 的输入文件
+	MapNumber           int                //	-------	// map task 总数, 一个 task 对应一个 worker
+	ReduceNumber        int                //	-------	// reduce task 总数, 一个 task 对应一个 worker
+	MapTaskStatusMap    map[int]TaskStatus // 记录每一个 map worker 的 task 当前执行状态
+	ReduceTaskStatusMap map[int]TaskStatus // 记录每一个 reduce worker 的 task 当前执行状态
+	CurPhase            Phase              //	-------	// 当前处于的任务阶段: map/reduce
+	TaskDone            bool               //	-------	// 任务是否已完成
+	DoneMapNumber       int                //	-------	// 已完成的 map task 总数
+	DoneReduceNumber    int                //	-------	// 已完成的 reduce task 总数
 }
 
 // Your code here -- RPC handlers for the worker to call.
@@ -66,15 +65,15 @@ func (c *Coordinator) Response(args *CallArgs, reply *CallReply) error {
 // 进行 map worker 的 task 分配工作
 //
 func (c *Coordinator) HandleMapRequire(reply *CallReply) error {
-	mutex.Lock()
-	defer mutex.Unlock() // 此函数退出后解锁信号量
+	c.mutex.Lock()
+	defer c.mutex.Unlock() // 此函数退出后解锁信号量
 	// task 分配步骤
 	// 1 从 MapTaskStatusMap 顺序查找第一个 NotStart 的 task
 	// 2 填充 reply
 	// 3 更新 MapTaskStatusMap 当前 task 状态为 Doing
 	// 4 启动一个定时器 goroutine 来实现简单的容错, 当前 task 的状态如果处于 Doing 超过 10s
 	// 	则认为执行它的 map worker crash 掉了, 将其状态修改为 NotStart
-	for idx:=0; idx<len(c.MapTaskStatusMap); idx++ {
+	for idx := 0; idx < len(c.MapTaskStatusMap); idx++ {
 		if c.MapTaskStatusMap[idx] == NotStart {
 			reply.MapFile = c.InputFiles[idx]
 			reply.CurPhase = MapPhase
@@ -86,8 +85,8 @@ func (c *Coordinator) HandleMapRequire(reply *CallReply) error {
 			go func(mapTaskIdx int) {
 				timer := time.NewTimer(time.Second * 10)
 				<-timer.C
-				mutex.Lock()
-				defer mutex.Unlock()
+				c.mutex.Lock()
+				defer c.mutex.Unlock()
 				// timeout and then callback task
 				if c.MapTaskStatusMap[mapTaskIdx] == Doing {
 					c.MapTaskStatusMap[mapTaskIdx] = NotStart
@@ -103,9 +102,9 @@ func (c *Coordinator) HandleMapRequire(reply *CallReply) error {
 // 与 map task 分配过程类似
 func (c *Coordinator) HandleReduceRequire(reply *CallReply) error {
 	// based the worker phase to handout task i.e. input files
-	mutex.Lock()
-	defer mutex.Unlock()
-	for idx:=0; idx<len(c.ReduceTaskStatusMap); idx++ {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	for idx := 0; idx < len(c.ReduceTaskStatusMap); idx++ {
 		if c.ReduceTaskStatusMap[idx] == NotStart {
 			reply.CurPhase = ReducePhase
 			reply.MapNumber = c.MapNumber
@@ -116,8 +115,8 @@ func (c *Coordinator) HandleReduceRequire(reply *CallReply) error {
 			go func(reduceTaskIdx int) {
 				timer := time.NewTimer(time.Second * 10)
 				<-timer.C
-				mutex.Lock()
-				defer mutex.Unlock()
+				c.mutex.Lock()
+				defer c.mutex.Unlock()
 				// timeout and then callback task
 				if c.ReduceTaskStatusMap[reduceTaskIdx] == Doing {
 					c.ReduceTaskStatusMap[reduceTaskIdx] = NotStart
@@ -132,8 +131,8 @@ func (c *Coordinator) HandleReduceRequire(reply *CallReply) error {
 // By 1uvu
 // task Finished 时更新 Done*Number, *TaskStatusMap 和 TaskDone
 func (c *Coordinator) HandleFinished(args *CallArgs) error {
-	mutex.Lock()
-	defer mutex.Unlock()
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
 	switch c.CurPhase {
 	case MapPhase:
 		c.MapTaskStatusMap[args.TaskIdx] = Done
@@ -154,8 +153,8 @@ func (c *Coordinator) HandleFinished(args *CallArgs) error {
 // By 1uvu
 // task Failed 时更新 *TaskStatusMap
 func (c *Coordinator) HandleFailed(args *CallArgs) error {
-	mutex.Lock()
-	defer mutex.Unlock()
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
 	switch c.CurPhase {
 	case MapPhase:
 		c.MapTaskStatusMap[args.TaskIdx] = NotStart
@@ -186,8 +185,8 @@ func (c *Coordinator) server() {
 // if the entire job has finished.
 //
 func (c *Coordinator) Done() bool {
-	mutex.Lock()
-	defer mutex.Unlock()
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
 	fmt.Println(c.TaskDone, c.DoneMapNumber, c.DoneReduceNumber)
 	ret := false
 	ret = c.TaskDone
@@ -209,9 +208,13 @@ func MakeCoordinator(files []string, nReduce int) *Coordinator {
 	c.DoneReduceNumber = 0
 	c.TaskDone = false
 	c.MapTaskStatusMap = make(map[int]TaskStatus, len(files))
-	for idx := 0; idx < len(files); idx++ { c.MapTaskStatusMap[idx] = NotStart }
+	for idx := 0; idx < len(files); idx++ {
+		c.MapTaskStatusMap[idx] = NotStart
+	}
 	c.ReduceTaskStatusMap = make(map[int]TaskStatus, nReduce)
-	for idx := 0; idx < nReduce; idx++ { c.ReduceTaskStatusMap[idx] = NotStart }
+	for idx := 0; idx < nReduce; idx++ {
+		c.ReduceTaskStatusMap[idx] = NotStart
+	}
 	c.server()
 	return &c
 }
