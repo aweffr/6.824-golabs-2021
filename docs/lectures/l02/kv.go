@@ -11,7 +11,6 @@ import (
 //
 // Common RPC request/reply definitions
 //
-
 const (
 	OK       = "OK"
 	ErrNoKey = "ErrNoKey"
@@ -90,6 +89,8 @@ func server() {
 	if e != nil {
 		log.Fatal("listen error:", e)
 	}
+
+	// 循环启动 goroutine 接收 client 的连接请求
 	go func() {
 		for {
 			conn, err := l.Accept()
@@ -133,7 +134,6 @@ func (kv *KV) Put(args *PutArgs, reply *PutReply) error {
 
 func main() {
 	server()
-
 	put("subject", "6.824")
 	fmt.Printf("Put(subject, 6.824) done\n")
 	fmt.Printf("get(subject) -> %s\n", get("subject"))

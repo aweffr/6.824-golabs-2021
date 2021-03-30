@@ -7,7 +7,7 @@ import (
 
 //
 // Serial crawler
-// By 1uvu
+
 // url 是当前待获取的 url
 // fetched 保存 url 的获取状态
 //
@@ -119,8 +119,8 @@ func ConcurrentChannel(url string, fetcher Fetcher) {
 	go func() {
 		ch <- []string{url} // 启动一个 channel 线程
 	}()
-	// coordinator 无法通过线程来启动, 因为不能在线程中启动其它线程
-	// 只能在当前进程中直接运行, 尝试:
+	// 由于此处的 ch 是一个缓存为空的同步通道, 因此,
+	// 如果启动 goroutine 来执行 coordinator 会直接跳出循环而提前结束
 	// go coordinator(ch, fetcher)
 	coordinator(ch, fetcher)
 }
@@ -139,15 +139,15 @@ func main() {
 //
 // Fetcher
 //
-
 type Fetcher interface {
 	// Fetch returns a slice of URLs found on the page.
 	Fetch(url string) (urls []string, err error)
 }
 
 // fakeFetcher is Fetcher that returns canned results.
-// By 1uvu
+
 // 保存每个 page 获取到的 content 和 urls
+//
 type fakeFetcher map[string]*fakeResult
 
 type fakeResult struct {
@@ -155,7 +155,6 @@ type fakeResult struct {
 	urls []string
 }
 
-// By 1uvu
 // 为 fakeFetcher 类型实现 Fetcher 接口
 func (f fakeFetcher) Fetch(url string) ([]string, error) {
 	if res, ok := f[url]; ok {
@@ -167,7 +166,7 @@ func (f fakeFetcher) Fetch(url string) ([]string, error) {
 }
 
 // fetcher is a populated fakeFetcher.
-// By 1uvu
+
 // 初始化一个 fetcher
 var fetcher = fakeFetcher{
 	"http://golang.org/": &fakeResult{
