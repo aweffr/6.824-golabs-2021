@@ -6,11 +6,6 @@ import (
 )
 
 //
-// Several solutions to the crawler exercise from the Go tutorial
-// https://tour.golang.org/concurrency/10
-//
-
-//
 // Serial crawler
 // By 1uvu
 // url 是当前待获取的 url
@@ -34,10 +29,10 @@ func Serial(url string, fetcher Fetcher, fetched map[string]bool) {
 
 //
 // Concurrent crawler with shared state and Mutex
-// By 1uvu
 // 定义获取状态
 // mu 原语为修改状态上锁
 // fetched 记录每个 url string 是否已被获取
+//
 type fetchState struct {
 	mu      sync.Mutex
 	fetched map[string]bool
@@ -86,10 +81,10 @@ func makeState() *fetchState {
 //
 // Concurrent crawler with channels
 //
-
 func worker(url string, ch chan []string, fetcher Fetcher) {
 	urls, err := fetcher.Fetch(url)
-	// "<-" 符号前面代表消息的接收者, 后面代表发生者
+	// "<-" 符号表示数据流的方向,
+	// 前面是消息的接收者, 后面代表发生者
 	if err != nil {
 		ch <- []string{} // channel 中已无 urls 待获取
 	} else {
@@ -129,10 +124,6 @@ func ConcurrentChannel(url string, fetcher Fetcher) {
 	// go coordinator(ch, fetcher)
 	coordinator(ch, fetcher)
 }
-
-//
-// main
-//
 
 func main() {
 	fmt.Printf("=== Serial===\n")

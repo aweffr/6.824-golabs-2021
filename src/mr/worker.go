@@ -33,6 +33,7 @@ func (a ByKey) Less(i, j int) bool { return a[i].Key < a[j].Key }
 
 // 保存每个中间文件的 json Encoder
 var intermediateEncoderMap map[int]*json.Encoder = nil
+
 // 保存每个中间文件的 file name
 var intermediateFileNameMap map[int]string = nil
 
