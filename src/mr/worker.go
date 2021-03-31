@@ -1,19 +1,19 @@
 package mr
 
 import (
+	"encoding/json"
 	"fmt"
+	"hash/fnv"
 	"io/ioutil"
+	"log"
+	"net/rpc"
 	"os"
 	"sort"
 	"time"
 )
-import "log"
-import "net/rpc"
-import "hash/fnv"
-import "encoding/json"
 
 // todo 1 worker 实现 Backup: mr-wc-all-initial
-// todo 2 use sync.Cond to replace time.Sleep
+// todo 2 use sync.Cond to replace time.Sleep, and use sync channel to replace the mutex
 // todo 3 improve the code based the official solution
 
 //
@@ -23,24 +23,12 @@ type KeyValue struct {
 	Key   string
 	Value string
 }
-
 // sorted by Key, 实现 sort.Sort() 的 data 接口
 type ByKey []KeyValue
-
 func (a ByKey) Len() int           { return len(a) }
 func (a ByKey) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a ByKey) Less(i, j int) bool { return a[i].Key < a[j].Key }
 
-// 保存每个中间文件的 json Encoder
-var intermediateEncoderMap map[int]*json.Encoder = nil
-
-// 保存每个中间文件的 file name
-var intermediateFileNameMap map[int]string = nil
-
-//
-// use ihash(key) % NReduce to choose the reduce
-// task number for each KeyValue emitted by Map.
-// By 1uvu
 // 根据 ihash(key) % NReduce 的值将生成的每一个中间 kv 分配给对应的 reduce
 // (以存入 intermediate file named [mr-mapTaskIdx-reduceTaskIdx] 的形式)
 //
@@ -50,7 +38,12 @@ func ihash(key string) int {
 	return int(h.Sum32() & 0x7fffffff)
 }
 
-// By 1uvu
+// 保存每个中间文件的 json Encoder
+var intermediateEncoderMap map[int]*json.Encoder = nil
+
+// 保存每个中间文件的 file name
+var intermediateFileNameMap map[int]string = nil
+
 // 根据 coordinator 的响应 reply 携带的 worker 当前状态及其他信息, 来做对应的处理
 //
 func Worker(mapf func(string, string) []KeyValue, reducef func(string, []string) string) {
@@ -109,20 +102,21 @@ func MapTask(reply CallReply, mapf func(string, string) []KeyValue) bool {
 		return false
 	}
 	defer file.Close()
+
 	kva := mapf(fileName, string(content))
-	mapPhaseSucc := true
+	success := true
 	for i := 0; i < len(kva); i++ {
 		reduceTaskIdx := ihash(kva[i].Key) % reply.ReduceNumber
 		intermediateEncoder := intermediateEncoderMap[reduceTaskIdx]
 		if err := intermediateEncoder.Encode(kva[i]); err != nil {
-			mapPhaseSucc = false
+			success = false
 			intermediateEncoderMap = nil
 			intermediateFileNameMap = nil
 			log.Fatalf("encode kv:%v failed", kva[i])
 			return false
 		}
 	}
-	if mapPhaseSucc {
+	if success {
 		for reduceIdx, fileName := range intermediateFileNameMap {
 			_ = os.Rename(fileName, fmt.Sprintf("mr-%+v-%+v", reply.TaskIdx, reduceIdx))
 		}
@@ -175,6 +169,7 @@ func ReduceTask(reply CallReply, reducef func(string, []string) string) bool {
 		log.Fatalf("cannot open temp fileName:%v", tname)
 		return false
 	}
+	defer ofile.Close()
 
 	i := 0
 	for i < len(intermediate) {
@@ -195,13 +190,12 @@ func ReduceTask(reply CallReply, reducef func(string, []string) string) bool {
 	}
 	_ = os.Rename(tname, oname)
 	for i := 0; i < reply.MapNumber; i++ {
-		fileName := fmt.Sprintf("mr-%+v-%+v", i, reply.TaskIdx)
+		fileName := fmt.Sprintf("mr-+%v-%+v", i, reply.TaskIdx)
 		err := os.Remove(fileName)
 		if err != nil {
 			log.Fatalf("cannot remove tmp file:%v", fileName)
 		}
 	}
-	defer ofile.Close()
 	return true
 }
 

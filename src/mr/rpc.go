@@ -6,24 +6,51 @@ package mr
 // remember to capitalize all names.
 //
 
-import "os"
-import "strconv"
+import (
+	"os"
+	"strconv"
+)
 
-//
-// example to show how to declare the arguments
-// and reply for an RPC.
-//
-
-// By 1uvu
 // 定义 worker 状态
 //
 type WorkerStatus int
-
 const (
 	Idle WorkerStatus = iota
 	Finished
 	Failed
 )
+
+// 定义 task 状态
+//
+type TaskStatus int
+const (
+	NotStart TaskStatus = iota
+	Doing
+	Done
+)
+
+// 定义 task 阶段
+//
+type Phase int
+const (
+	MapPhase Phase = iota
+	ReducePhase
+)
+
+
+type CallArgs struct {
+	CurStatus WorkerStatus // 当前 worker 状态
+	TaskIdx   int          // 当前 worker task id
+}
+
+type CallReply struct {
+	CurPhase     Phase  // 当前处于 Map 阶段还是 Reduce 阶段
+	MapFile      string // map input file name
+	TaskDone     bool   // 是否全部 map 任务已完成
+	MapNumber    int    // Map 任务总数
+	ReduceNumber int    // Reduce 任务总数
+	TaskIdx      int    // 对于 Map 任务来说，需要同时得知 MapTaskIdx 和 ReduceTaskIdx，来对中间文件进行命名
+}
 
 func (status WorkerStatus) String() string {
 	switch status {
@@ -38,17 +65,6 @@ func (status WorkerStatus) String() string {
 	}
 }
 
-// By 1uvu
-// 定义 task 状态
-//
-type TaskStatus int
-
-const (
-	NotStart TaskStatus = iota
-	Doing
-	Done
-)
-
 func (status TaskStatus) String() string {
 	switch status {
 	case NotStart:
@@ -62,16 +78,6 @@ func (status TaskStatus) String() string {
 	}
 }
 
-// By 1uvu
-// 定义 task 阶段
-//
-type Phase int
-
-const (
-	MapPhase Phase = iota
-	ReducePhase
-)
-
 func (phase Phase) String() string {
 	switch phase {
 	case MapPhase:
@@ -81,20 +87,6 @@ func (phase Phase) String() string {
 	default:
 		return "Unknown Phase"
 	}
-}
-
-type CallArgs struct {
-	CurStatus WorkerStatus // 当前 worker 状态
-	TaskIdx   int          // 当前 worker task id
-}
-
-type CallReply struct {
-	CurPhase     Phase  // 当前处于 Map 阶段还是 Reduce 阶段
-	MapFile      string // map input file name
-	TaskDone     bool   // 是否全部 map 任务已完成
-	MapNumber    int    // Map 任务总数
-	ReduceNumber int    // Reduce 任务总数
-	TaskIdx      int    // 对于 Map 任务来说，需要同时得知 MapTaskIdx 和 ReduceTaskIdx，来对中间文件进行命名
 }
 
 // Cook up a unique-ish UNIX-domain socket name

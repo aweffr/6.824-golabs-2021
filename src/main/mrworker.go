@@ -10,11 +10,14 @@ package main
 // Please do not change this file.
 //
 
-import "6.824-golabs-2021/mr"
-import "plugin"
-import "os"
-import "fmt"
-import "log"
+import (
+	"fmt"
+	"log"
+	"os"
+	"plugin"
+
+	"6.824-golabs-2021/mr"
+)
 
 func main() {
 	if len(os.Args) != 2 {

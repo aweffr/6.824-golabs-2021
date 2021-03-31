@@ -22,7 +22,6 @@ import (
 	"sync"
 	"sync/atomic"
 
-	//	"6.824-golabs-2021/labgob"
 	"6.824-golabs-2021/labrpc"
 )
 

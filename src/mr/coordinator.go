@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-// By 1uvu
+
 // mutex 信号量锁住的其实不是资源而是资源的“状态”, 一份资源上一把锁
 // 使得每一个获得了这份资源的锁的线程均可以确定地使用和修改资源的状态.
 // 也就是说，对上锁了的资源的状态的使用和修改操作是原子的.
@@ -19,26 +19,23 @@ import (
 // map worker 和 reduce worker 并不会一起执行, 因此此处只需要定义一个 mutex 写好了即可.
 //
 type Coordinator struct {
-	// By 1uvu
+
 	// 记录已分配的资源和工作进行情况
 	mutex               sync.Mutex
-	InputFiles          []string           //	-------	// map worker 的输入文件
-	MapNumber           int                //	-------	// map task 总数, 一个 task 对应一个 worker
-	ReduceNumber        int                //	-------	// reduce task 总数, 一个 task 对应一个 worker
+	InputFiles          []string           // map worker 的输入文件
+	MapNumber           int                // map task 总数, 一个 task 对应一个 worker
+	ReduceNumber        int                // reduce task 总数, 一个 task 对应一个 worker
 	MapTaskStatusMap    map[int]TaskStatus // 记录每一个 map worker 的 task 当前执行状态
 	ReduceTaskStatusMap map[int]TaskStatus // 记录每一个 reduce worker 的 task 当前执行状态
-	CurPhase            Phase              //	-------	// 当前处于的任务阶段: map/reduce
-	TaskDone            bool               //	-------	// 任务是否已完成
-	DoneMapNumber       int                //	-------	// 已完成的 map task 总数
-	DoneReduceNumber    int                //	-------	// 已完成的 reduce task 总数
+	CurPhase            Phase              // 当前处于的任务阶段: map/reduce
+	TaskDone            bool               // 任务是否已完成
+	DoneMapNumber       int                // 已完成的 map task 总数
+	DoneReduceNumber    int                // 已完成的 reduce task 总数
 }
 
-// Your code here -- RPC handlers for the worker to call.
-// By 1uvu
 // 根据 worker 的请求 args 携带的 worker 当前状态, 来做对应的处理
 //
 func (c *Coordinator) Response(args *CallArgs, reply *CallReply) error {
-
 	switch args.CurStatus {
 	case Idle:
 		if c.TaskDone {
@@ -61,7 +58,7 @@ func (c *Coordinator) Response(args *CallArgs, reply *CallReply) error {
 	return nil
 }
 
-// By 1uvu
+
 // 进行 map worker 的 task 分配工作
 //
 func (c *Coordinator) HandleMapRequire(reply *CallReply) error {
@@ -98,7 +95,7 @@ func (c *Coordinator) HandleMapRequire(reply *CallReply) error {
 	return nil
 }
 
-// By 1uvu
+
 // 与 map task 分配过程类似
 func (c *Coordinator) HandleReduceRequire(reply *CallReply) error {
 	// based the worker phase to handout task i.e. input files
@@ -128,7 +125,7 @@ func (c *Coordinator) HandleReduceRequire(reply *CallReply) error {
 	return nil
 }
 
-// By 1uvu
+
 // task Finished 时更新 Done*Number, *TaskStatusMap 和 TaskDone
 func (c *Coordinator) HandleFinished(args *CallArgs) error {
 	c.mutex.Lock()
@@ -150,7 +147,7 @@ func (c *Coordinator) HandleFinished(args *CallArgs) error {
 	return nil
 }
 
-// By 1uvu
+
 // task Failed 时更新 *TaskStatusMap
 func (c *Coordinator) HandleFailed(args *CallArgs) error {
 	c.mutex.Lock()
@@ -187,7 +184,7 @@ func (c *Coordinator) server() {
 func (c *Coordinator) Done() bool {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
-	fmt.Println(c.TaskDone, c.DoneMapNumber, c.DoneReduceNumber)
+	//fmt.Println(c.TaskDone, c.DoneMapNumber, c.DoneReduceNumber)
 	ret := false
 	ret = c.TaskDone
 	return ret
