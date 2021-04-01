@@ -13,7 +13,7 @@ import (
 )
 
 // todo 1 worker 实现 Backup: mr-wc-all-initial
-// todo 2 use sync.Cond to replace time.Sleep, and use sync channel to replace the mutex
+// todo 2 use sync.Cond to replace time.Sleep, and use sync channel to replace the mutex, passed the test-mr-many.sh
 // todo 3 improve the code based the official solution
 
 //
