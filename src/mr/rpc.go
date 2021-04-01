@@ -49,7 +49,7 @@ type CallReply struct {
 	TaskDone     bool   // 是否全部 map 任务已完成
 	MapNumber    int    // Map 任务总数
 	ReduceNumber int    // Reduce 任务总数
-	TaskIdx      int    // 对于 Map 任务来说，需要同时得知 MapTaskIdx 和 ReduceTaskIdx，来对中间文件进行命名
+	TaskIdx      int    // 任务 id
 }
 
 func (status WorkerStatus) String() string {
