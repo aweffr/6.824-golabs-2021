@@ -16,7 +16,7 @@ import (
 // 使得每一个获得了这份资源的锁的线程均可以确定地使用和修改资源的状态.
 // 也就是说，对上锁了的资源的状态的使用和修改操作是原子的.
 // 另外注意: 锁本身无意义,它保证的只是对一系列状态使用和修改操作的原子性,
-// map worker 和 reduce worker 并不会一起执行, 因此此处只需要定义一个 mutex 写好了即可.
+// map worker 和 reduce worker 并不会一起执行, 因此此处只需要定义一个 mutex 即可.
 //
 type Coordinator struct {
 
@@ -39,6 +39,7 @@ func (c *Coordinator) Response(args *CallArgs, reply *CallReply) error {
 	switch args.CurStatus {
 	case Idle:
 		if c.TaskDone {
+			// todo fix：任务全部完成也需要通知 worker，而不能直接 return，避免未知错误
 			reply.TaskDone = true
 			return nil
 		}
@@ -81,7 +82,7 @@ func (c *Coordinator) HandleMapRequire(reply *CallReply) error {
 			// fault tolerance with waiting 10s
 			go func(mapTaskIdx int) {
 				timer := time.NewTimer(time.Second * 10)
-				<-timer.C
+				<-timer.C  // 10s 后继续执行下面的代码
 				c.mutex.Lock()
 				defer c.mutex.Unlock()
 				// timeout and then callback task
@@ -98,7 +99,6 @@ func (c *Coordinator) HandleMapRequire(reply *CallReply) error {
 
 // 与 map task 分配过程类似
 func (c *Coordinator) HandleReduceRequire(reply *CallReply) error {
-	// based the worker phase to handout task i.e. input files
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	for idx := 0; idx < len(c.ReduceTaskStatusMap); idx++ {
@@ -137,7 +137,7 @@ func (c *Coordinator) HandleFinished(args *CallArgs) error {
 		if c.DoneMapNumber == c.MapNumber {
 			c.CurPhase = ReducePhase
 		}
-		// todo 为 worker 实现 Backup 任务，
+		// todo fea：在此处为 worker 实现 Backup 任务，
 		// 在 test 时候不允许 worker 额外运行其他任务，
 		// 因此 Backup 任务只能在 worker 结束了一段时间后运行，如 10s。
 	case ReducePhase:
