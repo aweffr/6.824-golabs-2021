@@ -137,6 +137,9 @@ func (c *Coordinator) HandleFinished(args *CallArgs) error {
 		if c.DoneMapNumber == c.MapNumber {
 			c.CurPhase = ReducePhase
 		}
+		// todo 为 worker 实现 Backup 任务，
+		// 在 test 时候不允许 worker 额外运行其他任务，
+		// 因此 Backup 任务只能在 worker 结束了一段时间后运行，如 10s。
 	case ReducePhase:
 		c.ReduceTaskStatusMap[args.TaskIdx] = Done
 		c.DoneReduceNumber++
