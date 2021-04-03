@@ -19,7 +19,8 @@
 -   [Lectures](docs/lectures/)
     -   [x] [Lecture 1: Introduction](docs/lectures/l01/)
     -   [x] [Lecture 2: RPC and Threads](docs/lectures/l02/)
-    -   [ ] [Lecture 3: Raft](docs/lectures/l03/)
+    -   [x] [Lecture 3: GFS](docs/lectures/l03/)
+    -   [ ] [Lecture 4](#)
 
 ## Schedule: Spring 2021
 
